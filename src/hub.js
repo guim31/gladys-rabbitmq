@@ -267,6 +267,9 @@ export class RabbitHub {
         }
       }
     }
+    if (!snapshot) {
+      this.triggers.onNoSnapshot();
+    }
     const { unreachable, offlineMinutes: down } = this.triggers.onTick();
     for (const minutes of unreachable) {
       events.push([

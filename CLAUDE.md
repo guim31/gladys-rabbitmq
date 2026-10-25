@@ -264,9 +264,14 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
   utilisé, il passerait pour une panne). L'API ne donne pas de date de début : la durée court depuis
   la première lecture qui l'a vue. Provoquées en test par
   `rabbitmqctl set_vm_memory_high_watermark absolute 50MB` et `set_disk_free_limit 10000GB`.
+- **Retard des statistiques** : nœuds, `queue_totals` et compteurs des files viennent du collecteur de
+  stats (~5 s). Juste après une purge ou l'arrivée d'un consommateur, la première lecture peut encore
+  montrer l'état d'avant (vu en Docker le 25/10) : un cycle plus tard, c'est juste.
+- **Redémarrage** : comparé par **date de démarrage** (`maintenant - uptime`, tolérance 60 s), pas par
+  uptime : un redémarrage pendant une longue coupure laisse un uptime plus grand que le précédent.
 - **Identité d'une file** : syntaxique, jamais résolue contre le broker : `nom` (vhost `/`),
   `vhost/nom`, `/nom/avec/barre` (vhost `/`). Clé `vhost/nom` (`//zigbee` pour le vhost par défaut),
   `external_id` = `encodeURIComponent(clé)`. Figé : ne pas changer l'analyse.
-- **Redémarrage** : `uptime` des nœuds en ms ; le nom de nœud vaut `rabbit@<hostname>`, l'id du
+- **Nom de nœud** : `uptime` des nœuds en ms ; le nom de nœud vaut `rabbit@<hostname>`, l'id du
   conteneur sans `--hostname` : un conteneur recréé est un nouveau nœud, d'où la règle « le nœud le plus
   jeune rajeunit » reprise d'EMQX.

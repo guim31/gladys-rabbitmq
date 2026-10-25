@@ -23,6 +23,8 @@ export const WIDGET = {
 export const CONTENT_TTL_SECONDS = 30;
 // Rows of a status list, at most (core budget).
 export const MAX_ROWS = 10;
+// Alarm rows, at most (the last one sums up the rest).
+export const MAX_ALARM_ROWS = 4;
 
 export const TEXT = {
   en: {
@@ -244,11 +246,24 @@ export function buildBrokerContent({
     } else {
       const names = pick(ALARM_NAMES, language);
       const multi = stats.nodesTotal > 1;
-      // One row per kind of alarm; the node only matters in a cluster.
-      for (const alarm of stats.alarms.slice(0, 3)) {
+      // One row per alarm, the node only in a cluster; the last row sums up
+      // the rest.
+      const shown =
+        stats.alarms.length <= MAX_ALARM_ROWS
+          ? stats.alarms
+          : stats.alarms.slice(0, MAX_ALARM_ROWS - 1);
+      for (const alarm of shown) {
         items.push({
           label: text.alarm,
           value: clip(`${names[alarm.name] ?? alarm.name}${multi ? ` (${alarm.node})` : ''}`),
+          icon: 'alert-triangle',
+          color: WIDGET_COLORS.DANGER,
+        });
+      }
+      if (shown.length < stats.alarms.length) {
+        items.push({
+          label: text.alarms,
+          value: text.moreQueues(stats.alarms.length - shown.length),
           icon: 'alert-triangle',
           color: WIDGET_COLORS.DANGER,
         });
@@ -320,7 +335,8 @@ export function getBrokerWidget(hub, { settings = {}, language = 'en' } = {}) {
     features,
     queues: hub.addedQueues().map(([queue, device]) => ({
       label: device.name || queue.name,
-      read: hub.queues.get(queueKey(queue)),
+      // A queue whose latest read failed has no fresh numbers.
+      read: hub.unreadQueues.has(queueKey(queue)) ? undefined : hub.queues.get(queueKey(queue)),
     })),
     language,
     statsAt: hub.statsAt,

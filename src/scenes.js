@@ -62,7 +62,9 @@ export function queueSummary(hub, fields = {}) {
     throw new Error(pick(MESSAGES.unknownQueue, language(hub)));
   }
   const [queue] = added;
-  const read = hub.live() ? hub.queues.get(queueKey(queue)) : undefined;
+  const key = queueKey(queue);
+  // A queue whose latest read failed has no fresh numbers.
+  const read = hub.live() && !hub.unreadQueues.has(key) ? hub.queues.get(key) : undefined;
   const known = read?.known === true;
   return {
     summary: queueSentence(hub.data(), queueLabel(queue), read, language(hub)),

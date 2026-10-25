@@ -72,7 +72,9 @@ export function parseBroker(overview, nodes) {
       alarms.push({ name: ALARM.PARTITION, node: name });
     }
   }
-  const hasQueues = Object.keys(queued).length > 0;
+  // queue_totals is {} while the broker has no queue (0 then), and also when
+  // the metrics collector is disabled (message_stats gone too: unknown).
+  const noQueue = stats !== null && Object.keys(queued).length === 0;
   return {
     version: typeof o.rabbitmq_version === 'string' ? o.rabbitmq_version : null,
     clusterName: typeof o.cluster_name === 'string' ? o.cluster_name : null,
@@ -88,9 +90,8 @@ export function parseBroker(overview, nodes) {
     channels: num(totals.channels),
     consumers: num(totals.consumers),
     queues: num(totals.queues),
-    // queue_totals is {} while the broker has no queue.
-    messagesReady: num(queued.messages_ready) ?? (hasQueues ? null : 0),
-    messagesUnacked: num(queued.messages_unacknowledged) ?? (hasQueues ? null : 0),
+    messagesReady: num(queued.messages_ready) ?? (noQueue ? 0 : null),
+    messagesUnacked: num(queued.messages_unacknowledged) ?? (noQueue ? 0 : null),
     messagesPublished: stats ? rate(stats, 'publish') : null,
     messagesDelivered: stats ? rate(stats, 'deliver_get') : null,
     memoryAlarm: alarms.some((alarm) => alarm.name === ALARM.MEMORY),

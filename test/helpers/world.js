@@ -42,6 +42,8 @@ export function createFakeRabbit(version = '4.4.0') {
       [NODES_PATH]: { status: 200, body: fixture('nodes', version) },
     },
     queues: {},
+    // The uptime grows with the (mocked) clock, like a running broker's.
+    uptime: { base: null, at: Date.now() },
     // API paths (without query) answering 500, and a promise every request waits for.
     failing: new Set(),
     gate: null,
@@ -58,8 +60,9 @@ export function createFakeRabbit(version = '4.4.0') {
       const route = rabbit.routes[NODES_PATH];
       route.body = route.body.map((node) => ({ ...node, ...patch }));
     },
+    /** The uptime of every node now (ms); it keeps growing from there. */
     setUptime(ms) {
-      rabbit.setNodes({ uptime: ms });
+      rabbit.uptime = { base: ms, at: Date.now() };
     },
     /** A queue: a patch of the recorded body, or null (404). */
     setQueue(key, patch, base = 'queue-consumed') {
@@ -92,6 +95,17 @@ export function createFakeRabbit(version = '4.4.0') {
         return { status: 200, body };
       }
       const route = rabbit.routes[path];
+      if (path === NODES_PATH && route?.status === 200) {
+        const grown = Date.now() - rabbit.uptime.at;
+        return {
+          status: 200,
+          body: route.body.map((node) =>
+            node.uptime === undefined
+              ? node
+              : { ...node, uptime: (rabbit.uptime.base ?? node.uptime) + grown },
+          ),
+        };
+      }
       return route ?? { status: 404, body: { error: 'not_found', reason: 'Not Found' } };
     },
   };

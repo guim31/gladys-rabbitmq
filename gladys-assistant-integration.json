@@ -191,7 +191,7 @@
   "actions": [
     {
       "key": "check_connection",
-      "timeout_seconds": 30,
+      "timeout_seconds": 60,
       "label": {
         "en": "Check the connection",
         "fr": "Vérifier la connexion",
@@ -684,10 +684,10 @@
           "key": "queue",
           "type": "string",
           "label": {
-            "en": "Queue (vhost/name)",
-            "fr": "File (vhost/nom)",
-            "de": "Queue (vhost/Name)",
-            "es": "Cola (vhost/nombre)"
+            "en": "Queue (name, or vhost/name)",
+            "fr": "File (nom, ou vhost/nom)",
+            "de": "Queue (Name oder vhost/Name)",
+            "es": "Cola (nombre, o vhost/nombre)"
           }
         },
         {
@@ -839,10 +839,10 @@
           "key": "queue",
           "type": "string",
           "label": {
-            "en": "Queue (vhost/name)",
-            "fr": "File (vhost/nom)",
-            "de": "Queue (vhost/Name)",
-            "es": "Cola (vhost/nombre)"
+            "en": "Queue (name, or vhost/name)",
+            "fr": "File (nom, ou vhost/nom)",
+            "de": "Queue (Name oder vhost/Name)",
+            "es": "Cola (nombre, o vhost/nombre)"
           }
         },
         {
@@ -1121,10 +1121,10 @@
           "key": "queue",
           "type": "string",
           "label": {
-            "en": "Queue (vhost/name)",
-            "fr": "File (vhost/nom)",
-            "de": "Queue (vhost/Name)",
-            "es": "Cola (vhost/nombre)"
+            "en": "Queue (name, or vhost/name)",
+            "fr": "File (nom, ou vhost/nom)",
+            "de": "Queue (Name oder vhost/Name)",
+            "es": "Cola (nombre, o vhost/nombre)"
           }
         }
       ]

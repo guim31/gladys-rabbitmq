@@ -47,6 +47,9 @@ export const QUEUE_THRESHOLDS = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100
 export const OUTAGE_MIN_MS = UNREACHABLE_MINUTES[0] * MINUTE;
 export const CONFIRM_MS = MINUTE;
 export const QUIET_PERIOD_MS = 30 * MINUTE;
+// The uptime is read with up to 5 s of delay (node statistics) and the clock
+// of the container may drift: a start date moving by less is the same start.
+export const RESTART_SLACK_MS = MINUTE;
 
 /**
  * @param {object} options
@@ -133,29 +136,42 @@ export function createTriggerTracker({ now = () => Date.now() } = {}) {
      * @returns {string[]} the nodes that restarted
      */
     onUptimes(uptimes) {
+      const at = now();
       const nodes = Object.keys(uptimes);
+      // Compared as start dates, not as uptimes: a restart during a long
+      // outage leaves a larger uptime than the one read before it.
+      const started = Object.fromEntries(nodes.map((node) => [node, at - uptimes[node]]));
       let restarted = [];
       if (lastUptimes !== null && nodes.length > 0) {
         restarted = nodes.filter(
-          (node) => lastUptimes[node] !== undefined && uptimes[node] < lastUptimes[node],
+          (node) =>
+            lastUptimes[node] !== undefined && started[node] > lastUptimes[node] + RESTART_SLACK_MS,
         );
         // In Docker the node name holds the host name, the container id unless
-        // set: a recreated container is a new node. The youngest node getting
-        // younger tells it.
-        const youngest = nodes.reduce((a, b) => (uptimes[a] <= uptimes[b] ? a : b));
+        // set: a recreated container is a new node. The youngest node starting
+        // after every node seen before tells it.
+        const youngest = nodes.reduce((a, b) => (started[a] >= started[b] ? a : b));
         const previous = Object.values(lastUptimes);
         if (
           restarted.length === 0 &&
           previous.length > 0 &&
-          uptimes[youngest] < Math.min(...previous)
+          started[youngest] > Math.max(...previous) + RESTART_SLACK_MS
         ) {
           restarted = [youngest];
         }
       }
       if (nodes.length > 0) {
-        lastUptimes = { ...uptimes };
+        // The start date of each node (ms), despite the name.
+        lastUptimes = started;
       }
       return restarted;
+    },
+
+    /** A cycle without fresh numbers (outage, refused user): consumer counts are stale. */
+    onNoSnapshot() {
+      for (const queue of queues.values()) {
+        queue.noConsumerSince = null;
+      }
     },
 
     /**

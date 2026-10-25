@@ -524,12 +524,31 @@ test('a configuration saved during a slow read is read at once', async (t) => {
     release = resolve;
   });
   const slow = world.hub.poll();
+  await flush();
+  // The slow read is waiting on the broker: its requests went out.
+  const pending = world.rabbit.requests.length;
   const saved = world.gladys.fake.configUpdated({ ...CONFIG, password: 'fixed' });
-  world.rabbit.failWith(0);
+  await flush();
+  // It answers with the refusal of the old password, then the broker accepts.
   world.rabbit.gate = null;
   release();
   await slow;
+  world.rabbit.failWith(0);
   await saved;
   await flush();
+  // The refusal of the old configuration was dropped, the new one was read.
   assert.equal(world.hub.link, 'connected');
+  assert.ok(world.rabbit.requests.length > pending);
+  assert.deepEqual(world.gladys.fake.connectionStatus, { connected: true });
+});
+
+test('a broker restarted during a long outage fires broker_restarted', async (t) => {
+  const world = await addedWorld(t);
+  world.rabbit.down = true;
+  await tick(t, 30 * MINUTE);
+  // Restarted 25 minutes ago: its uptime is larger than the one read before.
+  world.rabbit.down = false;
+  world.rabbit.setUptime(25 * MINUTE);
+  await tick(t, 30 * SECOND);
+  assert.ok(keys(world).includes('broker_restarted'), keys(world).join());
 });
