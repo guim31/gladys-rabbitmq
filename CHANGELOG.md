@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-25
+
 ### Added
 
 - The RabbitMQ broker (or cluster) as a Gladys device, read from the management API (port 15672,
@@ -28,4 +30,5 @@ the notes of the version's GitHub Release.
   broker or an address without management API apart.
 - English, French, German and Spanish texts and documentation.
 
-[Unreleased]: https://github.com/guim31/gladys-rabbitmq/commits/main
+[Unreleased]: https://github.com/guim31/gladys-rabbitmq/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-rabbitmq/releases/tag/v1.0.0
