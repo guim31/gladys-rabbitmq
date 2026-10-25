@@ -1,0 +1,47 @@
+{
+  "consumers": 1,
+  "message_stats": {
+    "ack": 1231,
+    "ack_details": {
+      "rate": 10
+    },
+    "deliver": 1231,
+    "deliver_details": {
+      "rate": 10
+    },
+    "deliver_get": 1231,
+    "deliver_get_details": {
+      "rate": 10
+    },
+    "deliver_no_ack": 0,
+    "deliver_no_ack_details": {
+      "rate": 0
+    },
+    "get": 0,
+    "get_details": {
+      "rate": 0
+    },
+    "get_empty": 0,
+    "get_empty_details": {
+      "rate": 0
+    },
+    "get_no_ack": 0,
+    "get_no_ack_details": {
+      "rate": 0
+    },
+    "publish": 1231,
+    "publish_details": {
+      "rate": 10
+    },
+    "redeliver": 0,
+    "redeliver_details": {
+      "rate": 0
+    }
+  },
+  "messages_ready": 0,
+  "messages_unacknowledged": 0,
+  "name": "zigbee",
+  "state": "running",
+  "type": "classic",
+  "vhost": "/"
+}

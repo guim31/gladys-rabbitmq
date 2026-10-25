@@ -1,61 +1,164 @@
-# Demo Devices Template
+# RabbitMQ
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Watches the health of your **RabbitMQ** broker in Gladys: connections, channels, consumers, messages
+ready and unacknowledged, publish and delivery rates, memory and disk alarms, running nodes, uptime and
+outages, plus the queues you choose to follow (messages waiting, consumers).
 
-## What you get
+This integration is not affiliated with Broadcom or the RabbitMQ project.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## Overview
+
+RabbitMQ carries the messages of many self-hosted services (Home Assistant add-ons, Node-RED flows,
+Celery, n8n, custom scripts, MQTT through its plugin). When a consumer stops, its queue fills up
+silently; when memory or disk runs low, RabbitMQ blocks every publisher. This integration tells
+Gladys: every 30 seconds it reads the **management API** of RabbitMQ and turns what it says into
+Gladys devices, seven scene triggers, two scene actions and a dashboard widget.
+
+It only reads: it never publishes, purges or deletes anything, never opens an AMQP connection and never
+changes the configuration of RabbitMQ. Everything stays on your local network.
+
+## Requirements
+
+- Gladys 5.1 or later.
+- RabbitMQ 3.x or 4.x (tested with 4.4.0) with the **management plugin** enabled
+  (`rabbitmq-plugins enable rabbitmq_management`; it is already in the `rabbitmq:*-management` Docker
+  images), its port (**15672** by default) reachable from Gladys.
+- A RabbitMQ user and its password. The `monitoring` tag is enough: no administrator needed.
+
+### Create a read-only user
+
+On the RabbitMQ host (or `docker exec` into its container):
+
+```sh
+rabbitmqctl add_user gladys 'a-long-password'
+rabbitmqctl set_user_tags gladys monitoring
+# Access to the virtual host whose queues you follow ("/" here), without any right on its messages:
+rabbitmqctl set_permissions -p / gladys '^$' '^$' '^$'
+```
+
+The `monitoring` tag gives the overview, the nodes and their alarms. A queue is only visible in a
+virtual host the user may access: the permissions above (empty patterns: no configure, no write, no
+read) grant that access and nothing else. Repeat the last line for every other virtual host of a
+followed queue, otherwise RabbitMQ answers as if the queue did not exist. The same can be done in the management interface: **Admin → Users →
+Add a user**, tag **Monitoring**, then **Set permission**.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+| Field                            | Description                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Address of RabbitMQ              | The address of the management interface: `http://192.168.1.20:15672`, or a bare host (15672 is added).    |
+| User                             | The user created above.                                                                                   |
+| Password                         | Its password.                                                                                             |
+| Accept a self-signed certificate | For an `https://` address whose certificate Gladys cannot check.                                          |
+| Queues to follow                 | Separated by commas, 20 at most. Each becomes a device. Leave empty to follow none.                       |
+| Language of the texts            | Feature names of the devices when added, scene sentences and messages of the actions (French by default). |
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+How to write a queue:
 
-## Actions
+- `zigbee`: the queue `zigbee` of the default virtual host `/`;
+- `iot/sensors`: the queue `sensors` of the virtual host `iot`;
+- `/home/kitchen`: the queue `home/kitchen` of the virtual host `/` (a leading `/` for a name holding
+  a slash).
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+The **Check the connection** button reads RabbitMQ at once and tells its version, its key numbers, its
+alarms in progress and which followed queues exist.
 
-## Scenes
+Then open the **Discovery** tab of the integration and add the broker and the queues you want.
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+## The broker device
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+| Feature                   | Meaning                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| Reachable                 | 1 while the API answers, 0 during an outage.                                  |
+| Connections               | Client connections (AMQP, MQTT, STOMP…) open right now.                       |
+| Channels                  | Channels open in those connections.                                           |
+| Consumers                 | Consumers of all the queues.                                                  |
+| Queues                    | Queues of all the virtual hosts the user sees.                                |
+| Messages ready            | Messages waiting in all the queues, not yet delivered.                        |
+| Messages unacknowledged   | Messages delivered to a consumer that has not confirmed them yet.             |
+| Messages published (/min) | Messages received by the broker, per minute.                                  |
+| Messages delivered (/min) | Messages delivered to consumers (or fetched), per minute.                     |
+| Memory alarm              | 1 while a node is above its memory watermark: RabbitMQ blocks the publishers. |
+| Disk alarm                | 1 while a node is below its free disk limit: RabbitMQ blocks the publishers.  |
+| Running nodes             | Nodes of the cluster running (1 for a single broker).                         |
+| Uptime                    | In days, since the youngest node started.                                     |
+| Version                   | Version of RabbitMQ.                                                          |
 
-## Dashboard
+The rates are computed by RabbitMQ itself over its last 5-second sample. During an outage only
+**Reachable** changes: the other values keep their last reading.
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+## Followed queues
+
+Each queue of the **Queues to follow** field becomes a device named after it, with five features:
+**Messages ready**, **Messages unacknowledged**, **Consumers**, **Messages published (/min)** and
+**Messages delivered (/min)**.
+
+When a followed queue does not exist (not declared yet, deleted, an auto-delete queue whose consumer
+left), its values keep their last reading, the logs say so once, and **Check the connection** lists it
+as not found.
+
+## Dashboard widget
+
+The **RabbitMQ broker** widget shows the state of the broker, its version, its uptime, the nodes of a
+cluster, the alarms in progress, one row per followed queue added to Gladys (messages ready and
+consumers, in orange when nobody consumes it), and four live tiles: messages ready, published and
+delivered per minute, connections. Pick the broker in its settings.
+
+## Scene triggers
+
+| Trigger                 | When                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| Broker unreachable      | The API has not answered for 1, 5, 15, 30 or 60 minutes (your choice).                     |
+| Broker back             | The API answers again after an outage of at least one minute.                              |
+| Broker restarted        | The uptime of a node went back to zero, even without a visible outage.                     |
+| Alarm raised            | Memory alarm, disk alarm, network partition or a node of the cluster stopped (filterable). |
+| Alarm cleared           | One of those alarms is no longer in progress. Variable: its duration in minutes.           |
+| Queue without consumer  | A followed queue that had consumers has none for a minute.                                 |
+| Queue above a threshold | More messages ready in a followed queue than the chosen number; at most every 30 minutes.  |
+
+The **alarm** variable is `memory`, `disk`, `partition` or `node_down`. After a restart of the
+integration, the first reading is a reference: an alarm already in progress, a queue already without
+consumer or already above a threshold fires nothing.
+
+## Scene actions
+
+**Broker summary** gives a sentence ready for a message ("RabbitMQ 4.4.0 has been running for 3 days,
+5 connections, 12 messages ready and 0 unacknowledged, 40 messages published and 38 delivered per
+minute, no alarm.") and its numbers: reachable, connections, queues, messages ready and
+unacknowledged, published and delivered per minute, alarms in progress and their names, uptime in
+hours, version.
+
+**Queue summary** does the same for a followed queue you pick ("Queue zigbee: 7 messages ready,
+consumers: 1, 2 unacknowledged.") with its numbers and whether it exists.
+
+## Scene ideas
+
+- **Queue without consumer** on the queue of your Node-RED flow → send yourself "Nobody reads
+  {{queue}} any more, {{messages_ready}} messages waiting".
+- **Alarm raised** (filter: disk) → warn that the disk of the broker is almost full: every publisher
+  is blocked.
+- **Queue above a threshold** (1,000 messages) → turn a light orange.
+- Every morning, **Broker summary** → send the summary sentence to Telegram.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **RabbitMQ cannot be reached**: check the address and the port (15672 by default, not the AMQP port
+  5672), and that Gladys reaches it (firewall, Docker network).
+- **RabbitMQ refused the user**: check its name and password, and that it has the `monitoring` tag. A
+  user without any tag cannot use the management API.
+- **No management API at this address**: the plugin is not enabled, or the address points to
+  something else (AMQP port, another service).
+- **A followed queue is not found**: check its exact name and virtual host on the **Queues and
+  Streams** page (names are case-sensitive), and that the user has a permission on that virtual host
+  (`rabbitmqctl list_user_permissions gladys`).
+- **The rates stay at 0**: the metrics collector of RabbitMQ may be disabled
+  (`management_agent.disable_metrics_collector`).
+- More details: set `LOG_LEVEL=debug` and read the logs of the integration.
+
+## Limits
+
+- Read every 30 seconds: a consumer that leaves for less than a minute fires nothing.
+- The node statistics are refreshed every 5 seconds by RabbitMQ: an alarm shows a few seconds late.
+- 20 followed queues at most; a queue name holding a comma cannot be followed.
+- Only reading: no purge, no deletion, no message published.
+- Exchanges, bindings, shovels and federation links are not watched.

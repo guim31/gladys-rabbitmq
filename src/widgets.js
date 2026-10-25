@@ -1,169 +1,329 @@
 // -----------------------------------------------------------------------------
-// Dashboard widgets (SDK v0.14+, Gladys 5.1+).
+// The "RabbitMQ broker" dashboard widget: the state of the broker, its alarms
+// in progress, its followed queues and its key numbers.
 //
-// A widget puts the integration's own data on the Gladys dashboard without a
-// dedicated core widget. The manifest `widgets` field declares its identity
-// (key, label, icon, optional per-instance `settings`); at runtime the
-// integration returns a DECLARATIVE content — `text`, `value`, `gauge`,
-// `status`, `chart`, `card-list`, `image`, `button` — that the core renders
-// with its own theme, dark mode and translations. No HTML, no CSS.
-//
-// Each entry of WIDGETS is keyed by the widget `key` and exposes:
-//   - get(gladys, { settings, language, units, config }): the content,
-//     registered by index.js with `gladys.onWidgetGet(key, ...)`;
-//   - action(gladys, { actionKey, params, settings, config }) (optional): a
-//     tapped `button` carrying an `action`, registered with
-//     `gladys.onWidgetAction`.
-//
-// Check your contents in the tests with `validateWidgetContent` (exported by
-// the SDK, see test/widgets.test.js), or run with DEBUG=gladys-integration-sdk
-// to have the SDK log every violation of the vocabulary and the budget.
+// Content budget of the core: 8 components, 2 texts at most, 10 rows in a
+// status list. Here: 1 status list (state, version, uptime, nodes of a
+// cluster, alarms, then the followed queues added to Gladys), up to 4 live
+// tiles bound to the broker's features (they follow the published states
+// without any refresh), 1 caption. Pre-localized from the viewer's
+// `language` (the core caches the content per settings, language and units).
 // -----------------------------------------------------------------------------
 
-import {
-  createLogger,
-  DEVICE_FEATURE_CATEGORIES,
-  DEVICE_TRANSPORTS,
-  WIDGET_COLORS,
-} from '@gladysassistant/integration-sdk';
-import { identifyDevice } from './devices/index.js';
-import { weatherStation } from './devices/weatherStation.js';
-import { plug } from './devices/plug.js';
-import { light } from './devices/light.js';
+import { WIDGET_COLORS } from '@gladysassistant/integration-sdk';
+import { isConfigured, queueKey } from './config.js';
+import { brokerIds } from './devices.js';
+import { ALARM_NAMES, formatDuration, formatNumber, pick, relativeTime } from './i18n.js';
+import { WIDGET_KEY } from './hub.js';
 
-const logger = createLogger({ name: 'widgets' });
+export const WIDGET = {
+  BROKER: WIDGET_KEY,
+};
 
-// Widget key, as declared in the manifest `widgets` field.
-export const DEMO_STATUS_WIDGET = 'demo_status';
+export const CONTENT_TTL_SECONDS = 30;
+// Rows of a status list, at most (core budget).
+export const MAX_ROWS = 10;
 
-// Keys of the `button` actions the demo_status content declares.
-const DEMO_STATUS_ACTIONS = { IDENTIFY_LIGHT: 'identify_light' };
-
-// How the plug transport reads in the status list.
-const TRANSPORT_STATUS = {
-  [DEVICE_TRANSPORTS.LOCAL]: { value: { en: 'Local', fr: 'Locale' }, color: WIDGET_COLORS.SUCCESS },
-  [DEVICE_TRANSPORTS.CLOUD]: { value: { en: 'Cloud', fr: 'Cloud' }, color: WIDGET_COLORS.INFO },
-  [DEVICE_TRANSPORTS.UNREACHABLE]: {
-    value: { en: 'Unreachable', fr: 'Injoignable' },
-    color: WIDGET_COLORS.DANGER,
+export const TEXT = {
+  en: {
+    notConfigured:
+      'Enter the address of RabbitMQ, a user and its password in the integration configuration.',
+    pickBroker: 'Pick the broker in the widget settings.',
+    unknownBroker: 'Add the RabbitMQ broker to Gladys first (Discovery tab), then pick it here.',
+    broker: 'Broker',
+    online: 'Online',
+    unreachable: 'Unreachable',
+    refused: 'User refused',
+    incompatible: 'No management API',
+    connecting: 'Connecting…',
+    version: 'Version',
+    uptime: 'Uptime',
+    nodes: 'Nodes',
+    alarms: 'Alarms',
+    alarm: 'Alarm',
+    noAlarm: 'None',
+    queueValue: (ready, consumers) => `${ready} ready · ${consumers} cons.`,
+    queueMissing: 'Not found',
+    queueUnknown: '…',
+    moreQueues: (count) => `+${count} more`,
+    queues: 'Queues',
+    ready: 'Ready',
+    published: 'Published /min',
+    delivered: 'Delivered /min',
+    connections: 'Connections',
+    updated: (ago) => `Read ${ago}`,
+  },
+  fr: {
+    notConfigured:
+      "Saisissez l'adresse de RabbitMQ, un utilisateur et son mot de passe dans la configuration de l'intégration.",
+    pickBroker: 'Choisissez le broker dans les réglages du widget.',
+    unknownBroker:
+      "Ajoutez d'abord le broker RabbitMQ à Gladys (onglet Découverte), puis choisissez-le ici.",
+    broker: 'Broker',
+    online: 'En ligne',
+    unreachable: 'Injoignable',
+    refused: 'Utilisateur refusé',
+    incompatible: "Pas d'API de gestion",
+    connecting: 'Connexion…',
+    version: 'Version',
+    uptime: 'En marche depuis',
+    nodes: 'Nœuds',
+    alarms: 'Alarmes',
+    alarm: 'Alarme',
+    noAlarm: 'Aucune',
+    queueValue: (ready, consumers) => `${ready} prêts · ${consumers} cons.`,
+    queueMissing: 'Introuvable',
+    queueUnknown: '…',
+    moreQueues: (count) => `${count} de plus`,
+    queues: 'Files',
+    ready: 'Prêts',
+    published: 'Publiés /min',
+    delivered: 'Livrés /min',
+    connections: 'Connexions',
+    updated: (ago) => `Lu ${ago}`,
+  },
+  de: {
+    notConfigured:
+      'Gib die Adresse von RabbitMQ, einen Benutzer und sein Passwort in der Konfiguration der Integration ein.',
+    pickBroker: 'Wähle den Broker in den Einstellungen des Widgets.',
+    unknownBroker:
+      'Füge den RabbitMQ-Broker zuerst zu Gladys hinzu (Tab „Erkennung“) und wähle ihn dann hier.',
+    broker: 'Broker',
+    online: 'Online',
+    unreachable: 'Nicht erreichbar',
+    refused: 'Benutzer abgelehnt',
+    incompatible: 'Keine Management-API',
+    connecting: 'Verbinde…',
+    version: 'Version',
+    uptime: 'Laufzeit',
+    nodes: 'Knoten',
+    alarms: 'Alarme',
+    alarm: 'Alarm',
+    noAlarm: 'Keine',
+    queueValue: (ready, consumers) => `${ready} bereit · ${consumers} Cons.`,
+    queueMissing: 'Nicht gefunden',
+    queueUnknown: '…',
+    moreQueues: (count) => `${count} weitere`,
+    queues: 'Queues',
+    ready: 'Bereit',
+    published: 'Veröffentlicht /min',
+    delivered: 'Zugestellt /min',
+    connections: 'Verbindungen',
+    updated: (ago) => `Gelesen ${ago}`,
+  },
+  es: {
+    notConfigured:
+      'Introduzca la dirección de RabbitMQ, un usuario y su contraseña en la configuración de la integración.',
+    pickBroker: 'Elija el broker en los ajustes del widget.',
+    unknownBroker:
+      'Añada primero el broker RabbitMQ a Gladys (pestaña Descubrimiento) y luego elíjalo aquí.',
+    broker: 'Broker',
+    online: 'En línea',
+    unreachable: 'Inaccesible',
+    refused: 'Usuario rechazado',
+    incompatible: 'Sin API de gestión',
+    connecting: 'Conectando…',
+    version: 'Versión',
+    uptime: 'En marcha desde hace',
+    nodes: 'Nodos',
+    alarms: 'Alarmas',
+    alarm: 'Alarma',
+    noAlarm: 'Ninguna',
+    queueValue: (ready, consumers) => `${ready} listos · ${consumers} cons.`,
+    queueMissing: 'No encontrada',
+    queueUnknown: '…',
+    moreQueues: (count) => `${count} más`,
+    queues: 'Colas',
+    ready: 'Listos',
+    published: 'Publicados /min',
+    delivered: 'Entregados /min',
+    connections: 'Conexiones',
+    updated: (ago) => `Leído ${ago}`,
   },
 };
 
-// A live tile references a feature by its external_id: read it from the
-// discovery payload itself, so the widget and the device never disagree.
-function featureExternalId(gladys, config, blueprint, category) {
-  const device = blueprint.buildDevice(gladys, config);
-  return device.features.find((feature) => feature.category === category).external_id;
-}
+// The live tiles: feature key, label key, icon.
+const TILES = [
+  ['messages_ready', 'ready', 'inbox'],
+  ['messages_published', 'published', 'upload'],
+  ['messages_delivered', 'delivered', 'download'],
+  ['connections', 'connections', 'link'],
+];
 
-function plugConnectionStatus(gladys, config) {
-  const { transport, degraded } = plug.transport(gladys, config);
-  const { value, color } = TRANSPORT_STATUS[transport];
-  if (degraded) {
+const LINK = {
+  connected: ['online', WIDGET_COLORS.SUCCESS],
+  refused: ['refused', WIDGET_COLORS.DANGER],
+  incompatible: ['incompatible', WIDGET_COLORS.DANGER],
+  unreachable: ['unreachable', WIDGET_COLORS.DANGER],
+};
+
+// A status value holds 40 characters at most.
+const clip = (value) => (value.length > 40 ? `${value.slice(0, 39)}…` : value);
+
+const textContent = (text) => ({
+  ttl_seconds: CONTENT_TTL_SECONDS,
+  components: [{ type: 'text', variant: 'body', text }],
+});
+
+/** The status row of a followed queue. */
+function queueRow(text, language, label, read) {
+  const n = (value) => (Number.isFinite(value) ? formatNumber(value, language, 0) : '?');
+  if (!read) {
+    return { label: clip(label), value: text.queueUnknown, icon: 'inbox' };
+  }
+  if (!read.known) {
     return {
-      value: { en: `${value.en} (degraded mode)`, fr: `${value.fr} (mode dégradé)` },
+      label: clip(label),
+      value: text.queueMissing,
+      icon: 'alert-triangle',
       color: WIDGET_COLORS.WARNING,
     };
   }
-  return { value, color };
+  return {
+    label: clip(label),
+    value: clip(text.queueValue(n(read.ready), n(read.consumers))),
+    icon: 'inbox',
+    // A queue nobody reads piles up its messages.
+    color: read.consumers === 0 ? WIDGET_COLORS.WARNING : WIDGET_COLORS.SUCCESS,
+  };
 }
 
-export const WIDGETS = {
-  [DEMO_STATUS_WIDGET]: {
-    // `settings` holds the per-instance values of the declared `settings`
-    // (none here); `language` and `units` are those of the user viewing the
-    // dashboard, for the values you format yourself. Multi-language objects
-    // (`{ en, fr }`) are picked by the core, like everywhere else.
-    async get(gladys, { config }) {
-      logger.debug(`onWidgetGet <- ${DEMO_STATUS_WIDGET}`);
-      return {
-        // Reload policy: the computed parts below only change with the
-        // config, and index.js nudges the widget on every (re)connection and
-        // config update (see refreshWidgets) — the TTL is just a safety net.
-        ttl_seconds: 300,
-        components: [
-          // Device-bound tiles: LIVE, they follow the published states over
-          // the core's real-time path. No TTL, no nudge involved.
-          {
-            type: 'value',
-            label: { en: 'Temperature', fr: 'Température' },
-            icon: 'thermometer',
-            device_feature: featureExternalId(
-              gladys,
-              config,
-              weatherStation,
-              DEVICE_FEATURE_CATEGORIES.TEMPERATURE_SENSOR,
-            ),
-          },
-          {
-            type: 'value',
-            label: { en: 'Office plug', fr: 'Prise du bureau' },
-            icon: 'zap',
-            device_feature: featureExternalId(
-              gladys,
-              config,
-              plug,
-              DEVICE_FEATURE_CATEGORIES.ENERGY_SENSOR,
-            ),
-          },
-          // Computed rows: what the integration knows that no device feature
-          // carries. Served from the core cache until the TTL or a nudge.
-          {
-            type: 'status',
-            items: [
-              {
-                label: { en: 'Plug connection', fr: 'Connexion de la prise' },
-                icon: 'wifi',
-                ...plugConnectionStatus(gladys, config),
-              },
-              {
-                label: { en: 'Observed location', fr: 'Position observée' },
-                icon: 'map-pin',
-                value: `${config.latitude.toFixed(2)}, ${config.longitude.toFixed(2)}`,
-                color: WIDGET_COLORS.NEUTRAL,
-              },
-            ],
-          },
-          // `params` are declared HERE and sent back as-is: the handler never
-          // receives user input (a dashboard can hang on a public wall).
-          {
-            type: 'button',
-            label: { en: 'Identify the light', fr: 'Identifier la lampe' },
-            icon: 'eye',
-            style: 'secondary',
-            action: {
-              key: DEMO_STATUS_ACTIONS.IDENTIFY_LIGHT,
-              params: { device: light.deviceExternalId(gladys) },
-            },
-          },
-        ],
-      };
-    },
-
-    // Resolve an optional toast (string or multi-language object, ≤ 200
-    // characters). After a successful action the core drops the cached
-    // content and every open dashboard refetches it: no nudge needed.
-    async action(gladys, { actionKey, params, config }) {
-      logger.info(`onWidgetAction <- ${DEMO_STATUS_WIDGET}.${actionKey}`);
-      if (actionKey === DEMO_STATUS_ACTIONS.IDENTIFY_LIGHT) {
-        return identifyDevice(gladys, params.device, config);
+/**
+ * Pure builder of the widget content.
+ * @param {object} input
+ * @param {object} input.gladys
+ * @param {string|null} input.link
+ * @param {object} input.stats
+ * @param {Set<string>} input.features the feature keys of the added device
+ * @param {Array<{ label: string, read: object|undefined }>} [input.queues] the
+ *   followed queues added to Gladys
+ * @param {string} input.language
+ * @param {number|null} input.statsAt ms
+ * @param {number} input.now ms
+ */
+export function buildBrokerContent({
+  gladys,
+  link,
+  stats,
+  features,
+  queues = [],
+  language,
+  statsAt,
+  now,
+}) {
+  const text = pick(TEXT, language);
+  const [stateKey, color] = LINK[link] ?? ['connecting', WIDGET_COLORS.NEUTRAL];
+  const items = [{ label: text.broker, value: text[stateKey], icon: 'server', color }];
+  if (stats.version) {
+    items.push({ label: text.version, value: stats.version, icon: 'tag' });
+  }
+  const live = link === 'connected';
+  if (live && Number.isFinite(stats.uptimeSeconds)) {
+    items.push({
+      label: text.uptime,
+      value: formatDuration(stats.uptimeSeconds, language),
+      icon: 'clock',
+    });
+  }
+  if (live && stats.nodesTotal > 1) {
+    items.push({
+      label: text.nodes,
+      value: `${stats.nodesRunning}/${stats.nodesTotal}`,
+      icon: 'layers',
+      color: stats.nodesRunning < stats.nodesTotal ? WIDGET_COLORS.WARNING : WIDGET_COLORS.SUCCESS,
+    });
+  }
+  if (live && Array.isArray(stats.alarms)) {
+    if (stats.alarms.length === 0) {
+      items.push({
+        label: text.alarms,
+        value: text.noAlarm,
+        icon: 'check-circle',
+        color: WIDGET_COLORS.SUCCESS,
+      });
+    } else {
+      const names = pick(ALARM_NAMES, language);
+      const multi = stats.nodesTotal > 1;
+      // One row per kind of alarm; the node only matters in a cluster.
+      for (const alarm of stats.alarms.slice(0, 3)) {
+        items.push({
+          label: text.alarm,
+          value: clip(`${names[alarm.name] ?? alarm.name}${multi ? ` (${alarm.node})` : ''}`),
+          icon: 'alert-triangle',
+          color: WIDGET_COLORS.DANGER,
+        });
       }
-      // Throwing acks the action as failed: the message reaches the user.
-      throw new Error(`Unknown widget action: ${actionKey}`);
-    },
-  },
-};
+    }
+  }
+  if (live && queues.length > 0) {
+    // The rows left for the queues; the last one sums up the rest.
+    const room = MAX_ROWS - items.length;
+    const shown = queues.length <= room ? queues : queues.slice(0, Math.max(0, room - 1));
+    for (const queue of shown) {
+      items.push(queueRow(text, language, queue.label, queue.read));
+    }
+    if (shown.length < queues.length) {
+      items.push({
+        label: text.queues,
+        value: text.moreQueues(queues.length - shown.length),
+        icon: 'inbox',
+      });
+    }
+  }
+  const components = [{ type: 'status', items }];
+  const ids = brokerIds(gladys);
+  for (const [key, label, icon] of TILES) {
+    if (features.has(key)) {
+      components.push({
+        type: 'value',
+        label: text[label],
+        icon,
+        device_feature: ids.feature(key),
+      });
+    }
+  }
+  if (statsAt !== null) {
+    components.push({
+      type: 'text',
+      variant: 'caption',
+      text: text.updated(relativeTime((now - statsAt) / 1000, language)),
+    });
+  }
+  return { ttl_seconds: CONTENT_TTL_SECONDS, components };
+}
 
 /**
- * Freshness nudge: ask the core to re-pull every widget NOW instead of
- * waiting for the content TTL. Call it when you KNOW a computed content
- * changed (here: the config, which drives the plug transport and the observed
- * location) — and after every (re)connection, since the nudges are
- * fire-and-forget: rate-limited core-side to 1 per 10 s per widget, dropped
- * silently while disconnected.
+ * The onWidgetGet handler of the broker widget.
+ * @param {import('./hub.js').RabbitHub} hub
+ * @param {{ settings?: object, language?: string }} request
  */
-export function refreshWidgets(gladys) {
-  for (const key of Object.keys(WIDGETS)) {
-    gladys.requestWidgetRefresh(key);
+export function getBrokerWidget(hub, { settings = {}, language = 'en' } = {}) {
+  const text = pick(TEXT, language);
+  if (!isConfigured(hub.config)) {
+    return textContent(text.notConfigured);
   }
+  if (!settings.device) {
+    return textContent(text.pickBroker);
+  }
+  const device = hub.addedBroker();
+  if (!device || device.external_id !== settings.device) {
+    return textContent(text.unknownBroker);
+  }
+  // Tiles only for the features of the device as added.
+  const ids = brokerIds(hub.gladys);
+  const added = new Set((device.features ?? []).map((feature) => feature.external_id));
+  const features = new Set(TILES.map(([key]) => key).filter((key) => added.has(ids.feature(key))));
+  return buildBrokerContent({
+    gladys: hub.gladys,
+    link: hub.link,
+    stats: hub.stats,
+    features,
+    queues: hub.addedQueues().map(([queue, device]) => ({
+      label: device.name || queue.name,
+      read: hub.queues.get(queueKey(queue)),
+    })),
+    language,
+    statsAt: hub.statsAt,
+    now: hub.now(),
+  });
 }

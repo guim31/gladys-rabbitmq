@@ -1,177 +1,1165 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "RabbitMQ",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "The health of your RabbitMQ broker in Gladys: queues, messages, consumers, alarms, outages.",
+    "fr": "La santé de votre broker RabbitMQ dans Gladys : files, messages, consommateurs, alarmes, pannes.",
+    "de": "Der Zustand deines RabbitMQ-Brokers in Gladys: Queues, Nachrichten, Consumer, Alarme, Ausfälle.",
+    "es": "La salud de su broker RabbitMQ en Gladys: colas, mensajes, consumidores, alarmas, caídas."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-rabbitmq:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-rabbitmq/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Connect RabbitMQ",
+        "fr": "Connecter RabbitMQ",
+        "de": "RabbitMQ verbinden",
+        "es": "Conectar RabbitMQ"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "The integration reads the management API of RabbitMQ every 30 seconds. It never changes anything. A user with the monitoring tag is enough: rabbitmqctl set_user_tags <user> monitoring.",
+        "fr": "L'intégration lit l'API de gestion de RabbitMQ toutes les 30 secondes. Elle ne modifie jamais rien. Un utilisateur avec le tag monitoring suffit : rabbitmqctl set_user_tags <utilisateur> monitoring.",
+        "de": "Die Integration liest alle 30 Sekunden die Management-API von RabbitMQ und ändert nie etwas. Ein Benutzer mit dem Tag monitoring genügt: rabbitmqctl set_user_tags <Benutzer> monitoring.",
+        "es": "La integración lee la API de gestión de RabbitMQ cada 30 segundos. Nunca modifica nada. Basta con un usuario con la etiqueta monitoring: rabbitmqctl set_user_tags <usuario> monitoring."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://www.rabbitmq.com/docs/management",
+          "label": {
+            "en": "The management plugin of RabbitMQ",
+            "fr": "Le plugin de gestion de RabbitMQ",
+            "de": "Das Management-Plugin von RabbitMQ",
+            "es": "El plugin de gestión de RabbitMQ"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "key": "url",
+      "type": "string",
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "label": {
+        "en": "Address of RabbitMQ",
+        "fr": "Adresse de RabbitMQ",
+        "de": "Adresse von RabbitMQ",
+        "es": "Dirección de RabbitMQ"
+      },
+      "description": {
+        "en": "The address of the management interface, port 15672 by default (http:// or https://).",
+        "fr": "L'adresse de l'interface de gestion, port 15672 par défaut (http:// ou https://).",
+        "de": "Die Adresse der Management-Oberfläche, standardmäßig Port 15672 (http:// oder https://).",
+        "es": "La dirección de la interfaz de gestión, puerto 15672 por defecto (http:// o https://)."
+      },
+      "placeholder": {
+        "en": "e.g. http://rabbitmq.local:15672",
+        "fr": "ex. http://rabbitmq.local:15672",
+        "de": "z. B. http://rabbitmq.local:15672",
+        "es": "p. ej. http://rabbitmq.local:15672"
+      }
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
+      "key": "username",
+      "type": "string",
       "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "label": {
+        "en": "User",
+        "fr": "Utilisateur",
+        "de": "Benutzer",
+        "es": "Usuario"
+      },
+      "description": {
+        "en": "Read access is enough: a user with the monitoring tag, no administrator.",
+        "fr": "Un accès en lecture suffit : un utilisateur avec le tag monitoring, pas un administrateur.",
+        "de": "Lesezugriff genügt: ein Benutzer mit dem Tag monitoring, kein Administrator.",
+        "es": "Basta con acceso de lectura: un usuario con la etiqueta monitoring, no un administrador."
+      }
     },
     {
-      "key": "unit",
+      "key": "password",
+      "type": "secret",
+      "required": true,
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
+      }
+    },
+    {
+      "key": "tls_insecure",
+      "type": "boolean",
+      "default": false,
+      "label": {
+        "en": "Accept a self-signed certificate",
+        "fr": "Accepter un certificat auto-signé",
+        "de": "Selbstsigniertes Zertifikat akzeptieren",
+        "es": "Aceptar un certificado autofirmado"
+      },
+      "description": {
+        "en": "https:// only: the certificate of RabbitMQ is then not checked.",
+        "fr": "https:// seulement : le certificat de RabbitMQ n'est alors pas vérifié.",
+        "de": "Nur https://: Das Zertifikat von RabbitMQ wird dann nicht geprüft.",
+        "es": "Solo https://: el certificado de RabbitMQ no se comprueba."
+      }
+    },
+    {
+      "key": "queues",
+      "type": "string",
+      "label": {
+        "en": "Queues to follow",
+        "fr": "Files à suivre",
+        "de": "Zu beobachtende Queues",
+        "es": "Colas que seguir"
+      },
+      "description": {
+        "en": "Separated by commas, 20 at most: each one becomes a device (messages, consumers). Write name for the virtual host /, vhost/name for another one. The user needs a permission on that virtual host.",
+        "fr": "Séparées par des virgules, 20 au plus : chacune devient un appareil (messages, consommateurs). Écrivez nom pour l'hôte virtuel /, vhost/nom pour un autre. L'utilisateur doit avoir une permission sur cet hôte virtuel.",
+        "de": "Durch Kommas getrennt, höchstens 20: Jede wird ein Gerät (Nachrichten, Consumer). Schreibe Name für den virtuellen Host /, vhost/Name für einen anderen. Der Benutzer braucht eine Berechtigung für diesen virtuellen Host.",
+        "es": "Separadas por comas, 20 como máximo: cada una se convierte en un dispositivo (mensajes, consumidores). Escriba nombre para el host virtual /, vhost/nombre para otro. El usuario necesita un permiso en ese host virtual."
+      },
+      "placeholder": {
+        "en": "e.g. zigbee, iot/sensors",
+        "fr": "ex. zigbee, iot/capteurs",
+        "de": "z. B. zigbee, iot/sensoren",
+        "es": "p. ej. zigbee, iot/sensores"
+      }
+    },
+    {
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+      "default": "fr",
+      "label": {
+        "en": "Language of the texts",
+        "fr": "Langue des textes",
+        "de": "Sprache der Texte",
+        "es": "Idioma de los textos"
       },
-      "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "description": {
+        "en": "Feature names of the devices when they are added, scene sentences and action messages.",
+        "fr": "Noms des fonctionnalités des appareils à leur ajout, phrases des scènes et messages des actions.",
+        "de": "Namen der Funktionen der Geräte beim Hinzufügen, Szenen-Sätze und Meldungen der Aktionen.",
+        "es": "Nombres de las funciones de los dispositivos al añadirlos, frases de escenas y mensajes de las acciones."
+      },
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "check_connection",
+      "timeout_seconds": 30,
+      "label": {
+        "en": "Check the connection",
+        "fr": "Vérifier la connexion",
+        "de": "Verbindung prüfen",
+        "es": "Comprobar la conexión"
+      },
+      "description": {
+        "en": "Reads RabbitMQ now: version, key numbers, alarms in progress and followed queues.",
+        "fr": "Lit RabbitMQ tout de suite : version, chiffres clés, alarmes en cours et files suivies.",
+        "de": "Liest RabbitMQ sofort: Version, Kennzahlen, aktive Alarme und beobachtete Queues.",
+        "es": "Lee RabbitMQ ahora mismo: versión, cifras clave, alarmas activas y colas seguidas."
+      }
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "broker_unreachable",
+      "label": {
+        "en": "RabbitMQ: broker unreachable",
+        "fr": "RabbitMQ : broker injoignable",
+        "de": "RabbitMQ: Broker nicht erreichbar",
+        "es": "RabbitMQ: broker inaccesible"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The management API has not answered for the chosen time. A restart of a few seconds fires nothing.",
+        "fr": "L'API de gestion ne répond plus depuis la durée choisie. Un redémarrage de quelques secondes ne déclenche rien.",
+        "de": "Die Management-API antwortet seit der gewählten Dauer nicht. Ein Neustart von wenigen Sekunden löst nichts aus.",
+        "es": "La API de gestión no responde desde hace el tiempo elegido. Un reinicio de unos segundos no activa nada."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "key": "after_minutes",
+          "type": "select",
+          "required": true,
+          "default": "5",
+          "label": {
+            "en": "Unreachable for",
+            "fr": "Injoignable depuis",
+            "de": "Nicht erreichbar seit",
+            "es": "Inaccesible desde hace"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "1",
+              "label": {
+                "en": "1 minute",
+                "fr": "1 minute",
+                "de": "1 Minute",
+                "es": "1 minuto"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "5 minutes",
+                "fr": "5 minutes",
+                "de": "5 Minuten",
+                "es": "5 minutos"
+              }
+            },
+            {
+              "value": "15",
+              "label": {
+                "en": "15 minutes",
+                "fr": "15 minutes",
+                "de": "15 Minuten",
+                "es": "15 minutos"
+              }
+            },
+            {
+              "value": "30",
+              "label": {
+                "en": "30 minutes",
+                "fr": "30 minutes",
+                "de": "30 Minuten",
+                "es": "30 minutos"
+              }
+            },
+            {
+              "value": "60",
+              "label": {
+                "en": "60 minutes",
+                "fr": "60 minutes",
+                "de": "60 Minuten",
+                "es": "60 minutos"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes without the broker",
+            "fr": "Minutes sans le broker",
+            "de": "Minuten ohne den Broker",
+            "es": "Minutos sin el broker"
+          }
+        },
+        {
+          "key": "broker",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Broker name",
+            "fr": "Nom du broker",
+            "de": "Name des Brokers",
+            "es": "Nombre del broker"
+          }
+        }
+      ]
+    },
+    {
+      "key": "broker_back",
+      "label": {
+        "en": "RabbitMQ: broker back",
+        "fr": "RabbitMQ : broker revenu",
+        "de": "RabbitMQ: Broker wieder da",
+        "es": "RabbitMQ: broker de vuelta"
+      },
+      "description": {
+        "en": "The management API answers again after an outage of at least one minute.",
+        "fr": "L'API de gestion répond de nouveau après une coupure d'au moins une minute.",
+        "de": "Die Management-API antwortet wieder nach einem Ausfall von mindestens einer Minute.",
+        "es": "La API de gestión vuelve a responder tras una caída de al menos un minuto."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "offline_minutes",
+          "type": "number",
+          "label": {
+            "en": "Outage duration (minutes)",
+            "fr": "Durée de la coupure (minutes)",
+            "de": "Dauer des Ausfalls (Minuten)",
+            "es": "Duración de la caída (minutos)"
+          }
+        },
+        {
+          "key": "broker",
+          "type": "string",
+          "label": {
+            "en": "Broker name",
+            "fr": "Nom du broker",
+            "de": "Name des Brokers",
+            "es": "Nombre del broker"
+          }
+        }
+      ]
+    },
+    {
+      "key": "broker_restarted",
+      "label": {
+        "en": "RabbitMQ: broker restarted",
+        "fr": "RabbitMQ : broker redémarré",
+        "de": "RabbitMQ: Broker neu gestartet",
+        "es": "RabbitMQ: broker reiniciado"
+      },
+      "description": {
+        "en": "The uptime of a RabbitMQ node went back to zero: it restarted or crashed, even without a visible outage.",
+        "fr": "La durée de fonctionnement d'un nœud RabbitMQ est revenue à zéro : il a redémarré ou planté, même sans coupure visible.",
+        "de": "Die Laufzeit eines RabbitMQ-Knotens ist auf null zurückgegangen: Er wurde neu gestartet oder ist abgestürzt, auch ohne sichtbaren Ausfall.",
+        "es": "El tiempo en marcha de un nodo RabbitMQ volvió a cero: se reinició o falló, incluso sin caída visible."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "version",
+          "type": "string",
+          "label": {
+            "en": "RabbitMQ version",
+            "fr": "Version de RabbitMQ",
+            "de": "Version von RabbitMQ",
+            "es": "Versión de RabbitMQ"
+          }
+        },
+        {
+          "key": "node",
+          "type": "string",
+          "label": {
+            "en": "RabbitMQ node",
+            "fr": "Nœud RabbitMQ",
+            "de": "RabbitMQ-Knoten",
+            "es": "Nodo RabbitMQ"
+          }
+        },
+        {
+          "key": "broker",
+          "type": "string",
+          "label": {
+            "en": "Broker name",
+            "fr": "Nom du broker",
+            "de": "Name des Brokers",
+            "es": "Nombre del broker"
+          }
+        }
+      ]
+    },
+    {
+      "key": "alarm_raised",
+      "label": {
+        "en": "RabbitMQ: alarm raised",
+        "fr": "RabbitMQ : alarme levée",
+        "de": "RabbitMQ: Alarm ausgelöst",
+        "es": "RabbitMQ: alarma activada"
+      },
+      "description": {
+        "en": "Memory or disk alarm (the broker blocks its publishers), network partition, or a node of the cluster stopped.",
+        "fr": "Alarme mémoire ou disque (le broker bloque ses publieurs), partition réseau, ou nœud du cluster arrêté.",
+        "de": "Speicher- oder Festplattenalarm (der Broker blockiert seine Publisher), Netzwerkpartition oder ein gestoppter Knoten des Clusters.",
+        "es": "Alarma de memoria o de disco (el broker bloquea a sus publicadores), partición de red o un nodo del clúster detenido."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          }
+        },
+        {
+          "key": "alarm",
+          "type": "select",
+          "label": {
+            "en": "Alarm",
+            "fr": "Alarme",
+            "de": "Alarm",
+            "es": "Alarma"
+          },
+          "options": [
+            {
+              "value": "memory",
+              "label": {
+                "en": "Memory",
+                "fr": "Mémoire",
+                "de": "Speicher",
+                "es": "Memoria"
+              }
+            },
+            {
+              "value": "disk",
+              "label": {
+                "en": "Disk space",
+                "fr": "Espace disque",
+                "de": "Speicherplatz",
+                "es": "Espacio en disco"
+              }
+            },
+            {
+              "value": "partition",
+              "label": {
+                "en": "Network partition",
+                "fr": "Partition réseau",
+                "de": "Netzwerkpartition",
+                "es": "Partición de red"
+              }
+            },
+            {
+              "value": "node_down",
+              "label": {
+                "en": "Node stopped",
+                "fr": "Nœud arrêté",
+                "de": "Knoten gestoppt",
+                "es": "Nodo detenido"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "alarm",
+          "type": "string",
+          "label": {
+            "en": "Alarm (memory, disk, partition, node_down)",
+            "fr": "Alarme (memory, disk, partition, node_down)",
+            "de": "Alarm (memory, disk, partition, node_down)",
+            "es": "Alarma (memory, disk, partition, node_down)"
+          }
+        },
+        {
+          "key": "node",
+          "type": "string",
+          "label": {
+            "en": "RabbitMQ node",
+            "fr": "Nœud RabbitMQ",
+            "de": "RabbitMQ-Knoten",
+            "es": "Nodo RabbitMQ"
+          }
+        },
+        {
+          "key": "broker",
+          "type": "string",
+          "label": {
+            "en": "Broker name",
+            "fr": "Nom du broker",
+            "de": "Name des Brokers",
+            "es": "Nombre del broker"
+          }
+        }
+      ]
+    },
+    {
+      "key": "alarm_cleared",
+      "label": {
+        "en": "RabbitMQ: alarm cleared",
+        "fr": "RabbitMQ : alarme retombée",
+        "de": "RabbitMQ: Alarm beendet",
+        "es": "RabbitMQ: alarma desactivada"
+      },
+      "description": {
+        "en": "An alarm of RabbitMQ is no longer in progress: the publishers are unblocked.",
+        "fr": "Une alarme de RabbitMQ n'est plus en cours : les publieurs sont débloqués.",
+        "de": "Ein Alarm von RabbitMQ ist nicht mehr aktiv: Die Publisher sind wieder frei.",
+        "es": "Una alarma de RabbitMQ ya no está activa: los publicadores se desbloquean."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          }
+        },
+        {
+          "key": "alarm",
+          "type": "select",
+          "label": {
+            "en": "Alarm",
+            "fr": "Alarme",
+            "de": "Alarm",
+            "es": "Alarma"
+          },
+          "options": [
+            {
+              "value": "memory",
+              "label": {
+                "en": "Memory",
+                "fr": "Mémoire",
+                "de": "Speicher",
+                "es": "Memoria"
+              }
+            },
+            {
+              "value": "disk",
+              "label": {
+                "en": "Disk space",
+                "fr": "Espace disque",
+                "de": "Speicherplatz",
+                "es": "Espacio en disco"
+              }
+            },
+            {
+              "value": "partition",
+              "label": {
+                "en": "Network partition",
+                "fr": "Partition réseau",
+                "de": "Netzwerkpartition",
+                "es": "Partición de red"
+              }
+            },
+            {
+              "value": "node_down",
+              "label": {
+                "en": "Node stopped",
+                "fr": "Nœud arrêté",
+                "de": "Knoten gestoppt",
+                "es": "Nodo detenido"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "alarm",
+          "type": "string",
+          "label": {
+            "en": "Alarm (memory, disk, partition, node_down)",
+            "fr": "Alarme (memory, disk, partition, node_down)",
+            "de": "Alarm (memory, disk, partition, node_down)",
+            "es": "Alarma (memory, disk, partition, node_down)"
+          }
+        },
+        {
+          "key": "node",
+          "type": "string",
+          "label": {
+            "en": "RabbitMQ node",
+            "fr": "Nœud RabbitMQ",
+            "de": "RabbitMQ-Knoten",
+            "es": "Nodo RabbitMQ"
+          }
+        },
+        {
+          "key": "broker",
+          "type": "string",
+          "label": {
+            "en": "Broker name",
+            "fr": "Nom du broker",
+            "de": "Name des Brokers",
+            "es": "Nombre del broker"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Alarm duration (minutes)",
+            "fr": "Durée de l'alarme (minutes)",
+            "de": "Dauer des Alarms (Minuten)",
+            "es": "Duración de la alarma (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "queue_no_consumer",
+      "label": {
+        "en": "RabbitMQ: queue without consumer",
+        "fr": "RabbitMQ : file sans consommateur",
+        "de": "RabbitMQ: Queue ohne Consumer",
+        "es": "RabbitMQ: cola sin consumidor"
+      },
+      "description": {
+        "en": "A followed queue that had consumers has none for a minute: the service reading it stopped, its messages pile up.",
+        "fr": "Une file suivie qui avait des consommateurs n'en a plus depuis une minute : le service qui la lit s'est arrêté, ses messages s'accumulent.",
+        "de": "Eine beobachtete Queue, die Consumer hatte, hat seit einer Minute keinen mehr: Der lesende Dienst ist gestoppt, ihre Nachrichten stauen sich.",
+        "es": "Una cola seguida que tenía consumidores no tiene ninguno desde hace un minuto: el servicio que la lee se detuvo, sus mensajes se acumulan."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Queue",
+            "fr": "File",
+            "de": "Queue",
+            "es": "Cola"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "queue",
+          "type": "string",
+          "label": {
+            "en": "Queue (vhost/name)",
+            "fr": "File (vhost/nom)",
+            "de": "Queue (vhost/Name)",
+            "es": "Cola (vhost/nombre)"
+          }
+        },
+        {
+          "key": "queue_name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'appareil",
+            "de": "Name des Geräts",
+            "es": "Nombre del dispositivo"
+          }
+        },
+        {
+          "key": "messages_ready",
+          "type": "number",
+          "label": {
+            "en": "Messages ready",
+            "fr": "Messages prêts",
+            "de": "Bereite Nachrichten",
+            "es": "Mensajes listos"
+          }
+        }
+      ]
+    },
+    {
+      "key": "queue_above",
+      "label": {
+        "en": "RabbitMQ: queue above a threshold",
+        "fr": "RabbitMQ : file au-dessus d'un seuil",
+        "de": "RabbitMQ: Queue über einem Schwellwert",
+        "es": "RabbitMQ: cola por encima de un umbral"
+      },
+      "description": {
+        "en": "More messages ready in a followed queue than the chosen number: its consumer is too slow or stopped. At most once every 30 minutes.",
+        "fr": "Plus de messages prêts dans une file suivie que le nombre choisi : son consommateur est trop lent ou arrêté. Au plus une fois toutes les 30 minutes.",
+        "de": "Mehr bereite Nachrichten in einer beobachteten Queue als die gewählte Zahl: Der Consumer ist zu langsam oder gestoppt. Höchstens einmal alle 30 Minuten.",
+        "es": "Más mensajes listos en una cola seguida que el número elegido: su consumidor es demasiado lento o está detenido. Como mucho una vez cada 30 minutos."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Queue",
+            "fr": "File",
+            "de": "Queue",
+            "es": "Cola"
+          }
+        },
+        {
+          "key": "above",
+          "type": "select",
+          "required": true,
+          "default": "1000",
+          "label": {
+            "en": "More than",
+            "fr": "Plus de",
+            "de": "Mehr als",
+            "es": "Más de"
+          },
+          "options": [
+            {
+              "value": "10",
+              "label": {
+                "en": "10 messages",
+                "fr": "10 messages",
+                "de": "10 Nachrichten",
+                "es": "10 mensajes"
+              }
+            },
+            {
+              "value": "50",
+              "label": {
+                "en": "50 messages",
+                "fr": "50 messages",
+                "de": "50 Nachrichten",
+                "es": "50 mensajes"
+              }
+            },
+            {
+              "value": "100",
+              "label": {
+                "en": "100 messages",
+                "fr": "100 messages",
+                "de": "100 Nachrichten",
+                "es": "100 mensajes"
+              }
+            },
+            {
+              "value": "500",
+              "label": {
+                "en": "500 messages",
+                "fr": "500 messages",
+                "de": "500 Nachrichten",
+                "es": "500 mensajes"
+              }
+            },
+            {
+              "value": "1000",
+              "label": {
+                "en": "1,000 messages",
+                "fr": "1 000 messages",
+                "de": "1.000 Nachrichten",
+                "es": "1.000 mensajes"
+              }
+            },
+            {
+              "value": "5000",
+              "label": {
+                "en": "5,000 messages",
+                "fr": "5 000 messages",
+                "de": "5.000 Nachrichten",
+                "es": "5.000 mensajes"
+              }
+            },
+            {
+              "value": "10000",
+              "label": {
+                "en": "10,000 messages",
+                "fr": "10 000 messages",
+                "de": "10.000 Nachrichten",
+                "es": "10.000 mensajes"
+              }
+            },
+            {
+              "value": "50000",
+              "label": {
+                "en": "50,000 messages",
+                "fr": "50 000 messages",
+                "de": "50.000 Nachrichten",
+                "es": "50.000 mensajes"
+              }
+            },
+            {
+              "value": "100000",
+              "label": {
+                "en": "100,000 messages",
+                "fr": "100 000 messages",
+                "de": "100.000 Nachrichten",
+                "es": "100.000 mensajes"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "queue",
+          "type": "string",
+          "label": {
+            "en": "Queue (vhost/name)",
+            "fr": "File (vhost/nom)",
+            "de": "Queue (vhost/Name)",
+            "es": "Cola (vhost/nombre)"
+          }
+        },
+        {
+          "key": "queue_name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'appareil",
+            "de": "Name des Geräts",
+            "es": "Nombre del dispositivo"
+          }
+        },
+        {
+          "key": "messages_ready",
+          "type": "number",
+          "label": {
+            "en": "Messages ready",
+            "fr": "Messages prêts",
+            "de": "Bereite Nachrichten",
+            "es": "Mensajes listos"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "broker_summary",
+      "timeout_seconds": 10,
+      "label": {
+        "en": "RabbitMQ: broker summary",
+        "fr": "RabbitMQ : état du broker",
+        "de": "RabbitMQ: Zustand des Brokers",
+        "es": "RabbitMQ: estado del broker"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "The state of the broker as a sentence ready for a message, with its numbers and alarms.",
+        "fr": "L'état du broker en une phrase prête pour un message, avec ses chiffres et ses alarmes.",
+        "de": "Der Zustand des Brokers als Satz für eine Nachricht, mit seinen Zahlen und Alarmen.",
+        "es": "El estado del broker en una frase lista para un mensaje, con sus cifras y alarmas."
+      },
+      "outputs": [
+        {
+          "key": "summary",
+          "type": "string",
+          "label": {
+            "en": "Summary sentence",
+            "fr": "Phrase de synthèse",
+            "de": "Zusammenfassung",
+            "es": "Frase de resumen"
+          }
+        },
+        {
+          "key": "reachable",
+          "type": "boolean",
+          "label": {
+            "en": "Reachable",
+            "fr": "Joignable",
+            "de": "Erreichbar",
+            "es": "Accesible"
+          }
+        },
+        {
+          "key": "connections",
+          "type": "number",
+          "label": {
+            "en": "Connections",
+            "fr": "Connexions",
+            "de": "Verbindungen",
+            "es": "Conexiones"
+          }
+        },
+        {
+          "key": "queues",
+          "type": "number",
+          "label": {
+            "en": "Queues",
+            "fr": "Files",
+            "de": "Queues",
+            "es": "Colas"
+          }
+        },
+        {
+          "key": "messages_ready",
+          "type": "number",
+          "label": {
+            "en": "Messages ready",
+            "fr": "Messages prêts",
+            "de": "Bereite Nachrichten",
+            "es": "Mensajes listos"
+          }
+        },
+        {
+          "key": "messages_unacknowledged",
+          "type": "number",
+          "label": {
+            "en": "Messages unacknowledged",
+            "fr": "Messages non acquittés",
+            "de": "Unbestätigte Nachrichten",
+            "es": "Mensajes sin confirmar"
+          }
+        },
+        {
+          "key": "messages_published_per_minute",
+          "type": "number",
+          "label": {
+            "en": "Messages published per minute",
+            "fr": "Messages publiés par minute",
+            "de": "Veröffentlichte Nachrichten pro Minute",
+            "es": "Mensajes publicados por minuto"
+          }
+        },
+        {
+          "key": "messages_delivered_per_minute",
+          "type": "number",
+          "label": {
+            "en": "Messages delivered per minute",
+            "fr": "Messages livrés par minute",
+            "de": "Zugestellte Nachrichten pro Minute",
+            "es": "Mensajes entregados por minuto"
+          }
+        },
+        {
+          "key": "active_alarms",
+          "type": "number",
+          "label": {
+            "en": "Alarms in progress",
+            "fr": "Alarmes en cours",
+            "de": "Aktive Alarme",
+            "es": "Alarmas activas"
+          }
+        },
+        {
+          "key": "alarm_names",
+          "type": "string",
+          "label": {
+            "en": "Names of the alarms",
+            "fr": "Noms des alarmes",
+            "de": "Namen der Alarme",
+            "es": "Nombres de las alarmas"
+          }
+        },
+        {
+          "key": "uptime_hours",
+          "type": "number",
+          "label": {
+            "en": "Uptime (hours)",
+            "fr": "Durée de fonctionnement (heures)",
+            "de": "Laufzeit (Stunden)",
+            "es": "Tiempo en marcha (horas)"
+          }
+        },
+        {
+          "key": "version",
+          "type": "string",
+          "label": {
+            "en": "RabbitMQ version",
+            "fr": "Version de RabbitMQ",
+            "de": "Version von RabbitMQ",
+            "es": "Versión de RabbitMQ"
+          }
+        }
+      ]
+    },
+    {
+      "key": "queue_summary",
+      "timeout_seconds": 10,
+      "label": {
+        "en": "RabbitMQ: queue summary",
+        "fr": "RabbitMQ : état d'une file",
+        "de": "RabbitMQ: Zustand einer Queue",
+        "es": "RabbitMQ: estado de una cola"
+      },
+      "description": {
+        "en": "The state of a followed queue as a sentence, with its messages ready, unacknowledged and its consumers.",
+        "fr": "L'état d'une file suivie en une phrase, avec ses messages prêts, non acquittés et ses consommateurs.",
+        "de": "Der Zustand einer beobachteten Queue als Satz, mit bereiten und unbestätigten Nachrichten und ihren Consumern.",
+        "es": "El estado de una cola seguida en una frase, con sus mensajes listos, sin confirmar y sus consumidores."
+      },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Queue",
+            "fr": "File",
+            "de": "Queue",
+            "es": "Cola"
+          },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "summary",
+          "type": "string",
+          "label": {
+            "en": "Summary sentence",
+            "fr": "Phrase de synthèse",
+            "de": "Zusammenfassung",
+            "es": "Frase de resumen"
+          }
+        },
+        {
+          "key": "reachable",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Reachable",
+            "fr": "Joignable",
+            "de": "Erreichbar",
+            "es": "Accesible"
+          }
+        },
+        {
+          "key": "exists",
+          "type": "boolean",
+          "label": {
+            "en": "Queue exists",
+            "fr": "La file existe",
+            "de": "Queue existiert",
+            "es": "La cola existe"
+          }
+        },
+        {
+          "key": "messages_ready",
+          "type": "number",
+          "label": {
+            "en": "Messages ready",
+            "fr": "Messages prêts",
+            "de": "Bereite Nachrichten",
+            "es": "Mensajes listos"
+          }
+        },
+        {
+          "key": "messages_unacknowledged",
+          "type": "number",
+          "label": {
+            "en": "Messages unacknowledged",
+            "fr": "Messages non acquittés",
+            "de": "Unbestätigte Nachrichten",
+            "es": "Mensajes sin confirmar"
+          }
+        },
+        {
+          "key": "consumers",
+          "type": "number",
+          "label": {
+            "en": "Consumers",
+            "fr": "Consommateurs",
+            "de": "Consumer",
+            "es": "Consumidores"
+          }
+        },
+        {
+          "key": "messages_published_per_minute",
+          "type": "number",
+          "label": {
+            "en": "Messages published per minute",
+            "fr": "Messages publiés par minute",
+            "de": "Veröffentlichte Nachrichten pro Minute",
+            "es": "Mensajes publicados por minuto"
+          }
+        },
+        {
+          "key": "messages_delivered_per_minute",
+          "type": "number",
+          "label": {
+            "en": "Messages delivered per minute",
+            "fr": "Messages livrés par minute",
+            "de": "Zugestellte Nachrichten pro Minute",
+            "es": "Mensajes entregados por minuto"
+          }
+        },
+        {
+          "key": "queue",
+          "type": "string",
+          "label": {
+            "en": "Queue (vhost/name)",
+            "fr": "File (vhost/nom)",
+            "de": "Queue (vhost/Name)",
+            "es": "Cola (vhost/nombre)"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "broker",
+      "icon": "layers",
+      "label": {
+        "en": "RabbitMQ broker",
+        "fr": "Broker RabbitMQ",
+        "de": "RabbitMQ-Broker",
+        "es": "Broker RabbitMQ"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "State of the RabbitMQ broker, its alarms, its followed queues and its key numbers.",
+        "fr": "État du broker RabbitMQ, ses alarmes, ses files suivies et ses chiffres clés.",
+        "de": "Zustand des RabbitMQ-Brokers, seine Alarme, beobachtete Queues und Kennzahlen.",
+        "es": "Estado del broker RabbitMQ, sus alarmas, sus colas seguidas y sus cifras clave."
+      },
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Broker",
+            "fr": "Broker",
+            "de": "Broker",
+            "es": "Broker"
+          },
+          "required": true
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,83 @@
+{
+  "rabbitmq_version": "4.4.0",
+  "cluster_name": "rabbit@rabbit1",
+  "message_stats": {
+    "get": 0,
+    "deliver": 1233,
+    "confirm": 4,
+    "ack": 1231,
+    "publish": 2460,
+    "redeliver": 0,
+    "deliver_no_ack": 0,
+    "get_empty": 0,
+    "get_no_ack": 0,
+    "drop_unroutable": 0,
+    "return_unroutable": 0,
+    "disk_reads": 94,
+    "disk_writes": 94,
+    "deliver_get": 1233,
+    "get_empty_details": {
+      "rate": 0
+    },
+    "deliver_get_details": {
+      "rate": 10
+    },
+    "ack_details": {
+      "rate": 10
+    },
+    "redeliver_details": {
+      "rate": 0
+    },
+    "deliver_no_ack_details": {
+      "rate": 0
+    },
+    "deliver_details": {
+      "rate": 10
+    },
+    "get_no_ack_details": {
+      "rate": 0
+    },
+    "get_details": {
+      "rate": 0
+    },
+    "drop_unroutable_details": {
+      "rate": 0
+    },
+    "return_unroutable_details": {
+      "rate": 0
+    },
+    "confirm_details": {
+      "rate": 0
+    },
+    "publish_details": {
+      "rate": 19.8
+    },
+    "disk_writes_details": {
+      "rate": 0
+    },
+    "disk_reads_details": {
+      "rate": 0
+    }
+  },
+  "queue_totals": {
+    "messages": 1195,
+    "messages_ready": 1193,
+    "messages_unacknowledged": 2,
+    "messages_details": {
+      "rate": 10
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 10
+    }
+  },
+  "object_totals": {
+    "exchanges": 15,
+    "queues": 2,
+    "channels": 4,
+    "consumers": 2,
+    "connections": 2
+  }
+}

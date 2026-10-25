@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-rabbitmq",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Gladys Assistant integration for RabbitMQ: the health of the broker, its alarms and followed queues, from its management API.",
   "type": "module",
   "main": "index.js",
   "scripts": {

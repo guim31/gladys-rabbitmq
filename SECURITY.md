@@ -33,3 +33,17 @@ In scope: the code of this repository and the Docker image it publishes.
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
 and the third-party services and devices the integration talks to.
+
+What the integration handles:
+
+- **Secrets**: the user and the password of RabbitMQ, kept by Gladys in the integration
+  configuration (the password in a `secret` field, never sent back to the browser). They travel only
+  in the `Authorization` header (HTTP Basic) of the requests to RabbitMQ, and are never logged; user
+  names or passwords typed in the address are removed from it.
+- **`/data`**: nothing is stored. The numbers and the states of the followed queues live in memory.
+- **Network**: `GET` requests only, every 30 seconds, to the configured management address (HTTP or
+  HTTPS): `/api/overview`, `/api/nodes` and `/api/queues/<vhost>/<name>` for each followed queue.
+  Nothing is ever published, purged, deleted or changed on the broker, and no AMQP connection is
+  opened; a user with the `monitoring` tag and empty permissions is enough. With "Accept a
+  self-signed certificate", the certificate of RabbitMQ is not checked: use it on your own network
+  only.
