@@ -1,0 +1,10 @@
+[
+  {
+    "partitions": [],
+    "mem_alarm": false,
+    "disk_free_alarm": false,
+    "uptime": 264158,
+    "name": "rabbit@rabbit1",
+    "running": true
+  }
+]

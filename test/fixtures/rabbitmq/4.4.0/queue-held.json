@@ -1,0 +1,47 @@
+{
+  "consumers": 1,
+  "message_stats": {
+    "ack": 0,
+    "ack_details": {
+      "rate": 0
+    },
+    "deliver": 2,
+    "deliver_details": {
+      "rate": 0
+    },
+    "deliver_get": 2,
+    "deliver_get_details": {
+      "rate": 0
+    },
+    "deliver_no_ack": 0,
+    "deliver_no_ack_details": {
+      "rate": 0
+    },
+    "get": 0,
+    "get_details": {
+      "rate": 0
+    },
+    "get_empty": 0,
+    "get_empty_details": {
+      "rate": 0
+    },
+    "get_no_ack": 0,
+    "get_no_ack_details": {
+      "rate": 0
+    },
+    "publish": 1229,
+    "publish_details": {
+      "rate": 10
+    },
+    "redeliver": 0,
+    "redeliver_details": {
+      "rate": 0
+    }
+  },
+  "messages_ready": 1193,
+  "messages_unacknowledged": 2,
+  "name": "sensors/kitchen",
+  "state": "running",
+  "type": "quorum",
+  "vhost": "iot"
+}

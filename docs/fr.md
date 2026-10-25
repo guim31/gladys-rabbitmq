@@ -1,67 +1,169 @@
-# Template de démonstration
+# RabbitMQ
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Surveille la santé de votre broker **RabbitMQ** dans Gladys : connexions, canaux, consommateurs,
+messages prêts et non acquittés, débits de publication et de livraison, alarmes mémoire et disque,
+nœuds en marche, durée de fonctionnement et pannes, ainsi que les files que vous choisissez de suivre
+(messages en attente, consommateurs).
 
-## Ce que vous obtenez
+Cette intégration n'est pas affiliée à Broadcom ni au projet RabbitMQ.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Présentation
+
+RabbitMQ transporte les messages de nombreux services auto-hébergés (modules de Home Assistant, flux
+Node-RED, Celery, n8n, scripts maison, MQTT par son plugin). Quand un consommateur s'arrête, sa file se
+remplit en silence ; quand la mémoire ou le disque manquent, RabbitMQ bloque tous les publieurs. Cette
+intégration le dit à Gladys : toutes les 30 secondes, elle lit l'**API de gestion** de RabbitMQ et en
+fait des appareils Gladys, sept déclencheurs de scène, deux actions de scène et un widget de tableau de
+bord.
+
+Elle ne fait que lire : elle ne publie, ne purge et ne supprime jamais rien, n'ouvre aucune connexion
+AMQP et ne modifie jamais la configuration de RabbitMQ. Tout reste sur votre réseau local.
+
+## Prérequis
+
+- Gladys 5.1 ou plus récent.
+- RabbitMQ 3.x ou 4.x (testé avec 4.4.0) avec le **plugin de gestion** activé
+  (`rabbitmq-plugins enable rabbitmq_management` ; il est déjà dans les images Docker
+  `rabbitmq:*-management`), son port (**15672** par défaut) joignable depuis Gladys.
+- Un utilisateur RabbitMQ et son mot de passe. Le tag `monitoring` suffit : pas besoin d'un
+  administrateur.
+
+### Créer un utilisateur en lecture seule
+
+Sur la machine de RabbitMQ (ou par `docker exec` dans son conteneur) :
+
+```sh
+rabbitmqctl add_user gladys 'un-long-mot-de-passe'
+rabbitmqctl set_user_tags gladys monitoring
+# Accès à l'hôte virtuel des files suivies ("/" ici), sans aucun droit sur ses messages :
+rabbitmqctl set_permissions -p / gladys '^$' '^$' '^$'
+```
+
+Le tag `monitoring` donne la vue d'ensemble, les nœuds et leurs alarmes. Une file n'est visible que
+dans un hôte virtuel auquel l'utilisateur a accès : les permissions ci-dessus (motifs vides : ni
+configuration, ni écriture, ni lecture) donnent cet accès et rien d'autre. Répétez la dernière ligne
+pour chaque autre hôte virtuel d'une file suivie, sinon RabbitMQ répond comme si la file n'existait
+pas. On peut faire de même dans l'interface de gestion : **Admin → Users → Add a user**, tag
+**Monitoring**, puis **Set permission**.
 
 ## Configuration
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+| Champ                             | Description                                                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Adresse de RabbitMQ               | L'adresse de l'interface de gestion : `http://192.168.1.20:15672`, ou un simple hôte (le port 15672 est ajouté).       |
+| Utilisateur                       | L'utilisateur créé plus haut.                                                                                          |
+| Mot de passe                      | Son mot de passe.                                                                                                      |
+| Accepter un certificat auto-signé | Pour une adresse `https://` dont Gladys ne peut pas vérifier le certificat.                                            |
+| Files à suivre                    | Séparées par des virgules, 20 au plus. Chacune devient un appareil. Laissez vide pour n'en suivre aucune.              |
+| Langue des textes                 | Noms des fonctionnalités des appareils à leur ajout, phrases des scènes et messages des actions (français par défaut). |
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Comment écrire une file :
 
-## Actions
+- `zigbee` : la file `zigbee` de l'hôte virtuel par défaut `/` ;
+- `iot/capteurs` : la file `capteurs` de l'hôte virtuel `iot` ;
+- `/maison/cuisine` : la file `maison/cuisine` de l'hôte virtuel `/` (un `/` au début pour un nom qui
+  contient une barre oblique).
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Le bouton **Vérifier la connexion** lit RabbitMQ tout de suite et indique sa version, ses chiffres
+clés, ses alarmes en cours et les files suivies qui existent.
 
-## Scènes
+Ouvrez ensuite l'onglet **Découverte** de l'intégration et ajoutez le broker et les files voulues.
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+## L'appareil broker
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+| Fonctionnalité          | Signification                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| Joignable               | 1 tant que l'API répond, 0 pendant une panne.                                           |
+| Connexions              | Connexions de clients (AMQP, MQTT, STOMP…) ouvertes en ce moment.                       |
+| Canaux                  | Canaux ouverts dans ces connexions.                                                     |
+| Consommateurs           | Consommateurs de toutes les files.                                                      |
+| Files                   | Files de tous les hôtes virtuels que l'utilisateur voit.                                |
+| Messages prêts          | Messages en attente dans toutes les files, pas encore livrés.                           |
+| Messages non acquittés  | Messages livrés à un consommateur qui ne les a pas encore confirmés.                    |
+| Messages publiés (/min) | Messages reçus par le broker, par minute.                                               |
+| Messages livrés (/min)  | Messages livrés aux consommateurs (ou récupérés), par minute.                           |
+| Alarme mémoire          | 1 tant qu'un nœud dépasse son seuil de mémoire : RabbitMQ bloque les publieurs.         |
+| Alarme disque           | 1 tant qu'un nœud passe sous sa limite d'espace disque : RabbitMQ bloque les publieurs. |
+| Nœuds en marche         | Nœuds du cluster en marche (1 pour un broker seul).                                     |
+| Durée de fonctionnement | En jours, depuis le démarrage du nœud le plus récent.                                   |
+| Version                 | Version de RabbitMQ.                                                                    |
 
-## Tableau de bord
+Les débits sont calculés par RabbitMQ lui-même sur son dernier échantillon de 5 secondes. Pendant une
+panne, seule **Joignable** change : les autres valeurs gardent leur dernière lecture.
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+## Files suivies
+
+Chaque file du champ **Files à suivre** devient un appareil qui porte son nom, avec cinq
+fonctionnalités : **Messages prêts**, **Messages non acquittés**, **Consommateurs**, **Messages
+publiés (/min)** et **Messages livrés (/min)**.
+
+Quand une file suivie n'existe pas (pas encore déclarée, supprimée, file auto-supprimée dont le
+consommateur est parti), ses valeurs gardent leur dernière lecture, les journaux le disent une fois et
+**Vérifier la connexion** l'indique comme introuvable.
+
+## Widget de tableau de bord
+
+Le widget **Broker RabbitMQ** affiche l'état du broker, sa version, sa durée de fonctionnement, les
+nœuds d'un cluster, les alarmes en cours, une ligne par file suivie ajoutée à Gladys (messages prêts et
+consommateurs, en orange quand personne ne la consomme) et quatre tuiles en direct : messages prêts,
+publiés et livrés par minute, connexions. Choisissez le broker dans ses réglages.
+
+## Déclencheurs de scène
+
+| Déclencheur               | Quand                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| Broker injoignable        | L'API ne répond plus depuis 1, 5, 15, 30 ou 60 minutes (au choix).                                |
+| Broker revenu             | L'API répond de nouveau après une coupure d'au moins une minute.                                  |
+| Broker redémarré          | La durée de fonctionnement d'un nœud est revenue à zéro, même sans coupure visible.               |
+| Alarme levée              | Alarme mémoire, alarme disque, partition réseau ou nœud du cluster arrêté (filtrable).            |
+| Alarme retombée           | Une de ces alarmes n'est plus en cours. Variable : sa durée en minutes.                           |
+| File sans consommateur    | Une file suivie qui avait des consommateurs n'en a plus depuis une minute.                        |
+| File au-dessus d'un seuil | Plus de messages prêts dans une file suivie que le nombre choisi ; au plus toutes les 30 minutes. |
+
+La variable **alarme** vaut `memory`, `disk`, `partition` ou `node_down`. Après un redémarrage de
+l'intégration, la première lecture sert de référence : une alarme déjà en cours, une file déjà sans
+consommateur ou déjà au-dessus d'un seuil ne déclenchent rien.
+
+## Actions de scène
+
+**État du broker** donne une phrase prête pour un message (« RabbitMQ 4.4.0 fonctionne depuis
+3 jours, 5 connexions, 12 messages prêts et 0 non acquittés, 40 messages publiés et 38 livrés par
+minute, aucune alarme. ») et ses chiffres : joignable, connexions, files, messages prêts et non
+acquittés, publiés et livrés par minute, alarmes en cours et leurs noms, durée de fonctionnement en
+heures, version.
+
+**État d'une file** fait de même pour une file suivie que vous choisissez (« File zigbee : 7 messages
+prêts, consommateurs : 1, 2 non acquittés. ») avec ses chiffres et si elle existe.
+
+## Idées de scènes
+
+- **File sans consommateur** sur la file de votre flux Node-RED → envoyez-vous « Plus personne ne lit
+  {{queue}}, {{messages_ready}} messages en attente ».
+- **Alarme levée** (filtre : espace disque) → prévenez que le disque du broker est presque plein : tous
+  les publieurs sont bloqués.
+- **File au-dessus d'un seuil** (1 000 messages) → passez une lampe en orange.
+- Chaque matin, **État du broker** → envoyez la phrase de synthèse sur Telegram.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **RabbitMQ est injoignable** : vérifiez l'adresse et le port (15672 par défaut, pas le port AMQP
+  5672), et que Gladys l'atteint (pare-feu, réseau Docker).
+- **RabbitMQ refuse l'utilisateur** : vérifiez son nom et son mot de passe, et qu'il a le tag
+  `monitoring`. Un utilisateur sans aucun tag ne peut pas utiliser l'API de gestion.
+- **Pas d'API de gestion à cette adresse** : le plugin n'est pas activé, ou l'adresse pointe vers
+  autre chose (port AMQP, autre service).
+- **Une file suivie est introuvable** : vérifiez son nom exact et son hôte virtuel sur la page **Queues
+  and Streams** (les noms distinguent les majuscules), et que l'utilisateur a une permission sur cet
+  hôte virtuel (`rabbitmqctl list_user_permissions gladys`).
+- **Les débits restent à 0** : le collecteur de métriques de RabbitMQ est peut-être désactivé
+  (`management_agent.disable_metrics_collector`).
+- Plus de détails : réglez `LOG_LEVEL=debug` et lisez les journaux de l'intégration.
+
+## Limites
+
+- Lecture toutes les 30 secondes : un consommateur absent moins d'une minute ne déclenche rien.
+- Les statistiques des nœuds sont rafraîchies toutes les 5 secondes par RabbitMQ : une alarme
+  apparaît avec quelques secondes de retard.
+- 20 files suivies au plus ; une file dont le nom contient une virgule ne peut pas être suivie.
+- Lecture seule : ni purge, ni suppression, ni message publié.
+- Les échanges, liaisons, shovels et liens de fédération ne sont pas surveillés.

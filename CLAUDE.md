@@ -31,16 +31,22 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        handlers: discovery, action, scene actions, widget, configuration
+src/hub.js                        30 s reading loop, link state, changed states, scene events
+src/devices.js                    the broker and followed-queue devices, their features and states
+src/triggers.js                   scene triggers as transitions (outages, restarts, alarms, queues)
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/i18n.js                       every text the container produces, in en/fr/de/es
+src/issues.js                     repeated failures logged once
+src/rabbitmq/client.js            management API client (HTTP Basic, GET only)
+src/rabbitmq/snapshot.js          raw API answers -> numbers
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/en.md, fr.md, de.md, es.md   user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/fixtures/rabbitmq/           real answers of RabbitMQ 4.4.0 (rabbitmq:4-management)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +76,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget content, feature names, manifest texts, and `docs/en.md`,
+  `fr.md`, `de.md`, `es.md`, kept in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +240,38 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## RabbitMQ (propre à cette intégration)
+
+- **API** : plugin `rabbitmq_management` (port 15672), HTTP Basic, GET seulement. Vérifié en Docker sur
+  `rabbitmq:4-management` (= 4.4.0 le 25/10/2026). Lectures par cycle de 30 s, réduites par `columns` :
+  `overview?columns=rabbitmq_version,cluster_name,message_stats,queue_totals,object_totals`,
+  `nodes?columns=name,running,uptime,mem_alarm,disk_free_alarm,partitions`, puis
+  `queues/<vhost>/<nom>?columns=…` (les deux parties encodées, `/` = `%2F`) par file suivie.
+  `columns` ne filtre que le premier niveau : `message_stats` revient entier.
+- **Utilisateur `monitoring`** : voit vue d'ensemble, nœuds et alarmes, mais **une file d'un vhost
+  sans permission répond 404**, comme une file absente (vérifié). D'où la doc :
+  `set_permissions -p <vhost> gladys '^$' '^$' '^$'` (accès sans aucun droit). Un 401 = utilisateur
+  refusé (pas une panne). Un 404 sur `overview` = pas d'API de gestion à cette adresse.
+- **Débits** : `message_stats.<clé>_details.rate` en messages/s (échantillon de 5 s du broker), publiés
+  ×60 par minute. `publish` pour la publication, `deliver_get` pour la livraison. Une clé absente =
+  jamais arrivé = 0 ; `message_stats` absent (collecteur désactivé) = inconnu. `queue_totals` vaut
+  `{}` sans aucune file : 0 publié.
+- **Alarmes** : tirées de `/api/nodes` (`mem_alarm`, `disk_free_alarm`, `partitions` non vide,
+  `running: false`), noms stables `memory`, `disk`, `partition`, `node_down` (variable `alarm` des
+  déclencheurs, et options du filtre). Les stats des nœuds sont rafraîchies toutes les 5 s : une alarme
+  y apparaît ~5 s après `/api/health/checks/alarms` (qui, lui, répond **503** en cas d'alarme : non
+  utilisé, il passerait pour une panne). L'API ne donne pas de date de début : la durée court depuis
+  la première lecture qui l'a vue. Provoquées en test par
+  `rabbitmqctl set_vm_memory_high_watermark absolute 50MB` et `set_disk_free_limit 10000GB`.
+- **Retard des statistiques** : nœuds, `queue_totals` et compteurs des files viennent du collecteur de
+  stats (~5 s). Juste après une purge ou l'arrivée d'un consommateur, la première lecture peut encore
+  montrer l'état d'avant (vu en Docker le 25/10) : un cycle plus tard, c'est juste.
+- **Redémarrage** : comparé par **date de démarrage** (`maintenant - uptime`, tolérance 60 s), pas par
+  uptime : un redémarrage pendant une longue coupure laisse un uptime plus grand que le précédent.
+- **Identité d'une file** : syntaxique, jamais résolue contre le broker : `nom` (vhost `/`),
+  `vhost/nom`, `/nom/avec/barre` (vhost `/`). Clé `vhost/nom` (`//zigbee` pour le vhost par défaut),
+  `external_id` = `encodeURIComponent(clé)`. Figé : ne pas changer l'analyse.
+- **Nom de nœud** : `uptime` des nœuds en ms ; le nom de nœud vaut `rabbit@<hostname>`, l'id du
+  conteneur sans `--hostname` : un conteneur recréé est un nouveau nœud, d'où la règle « le nœud le plus
+  jeune rajeunit » reprise d'EMQX.
